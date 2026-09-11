@@ -1,5 +1,6 @@
 import { loadData, saveData } from './storage.js';
 import { defaultData } from './data/default-data.js';
+import { syncRemoteMutation } from './supabase.js';
 
 class AppState {
     constructor() {
@@ -63,8 +64,10 @@ class AppState {
     }
 
     addTask(task) {
-        this.tasks.push({ id: Date.now(), ...task });
+        const record = { id: Date.now(), ...task };
+        this.tasks.push(record);
         this.persist('tasks');
+        syncRemoteMutation('tasks', 'insert', record);
     }
 
     toggleTask(id) {
@@ -72,6 +75,7 @@ class AppState {
         if (t) {
             t.completed = !t.completed;
             this.persist('tasks');
+            syncRemoteMutation('tasks', 'update', t, { completed: t.completed });
         }
     }
 
@@ -80,17 +84,22 @@ class AppState {
         if (task) {
             Object.assign(task, changes);
             this.persist('tasks');
+            syncRemoteMutation('tasks', 'update', task, changes);
         }
     }
 
     deleteTask(id) {
+        const task = this.tasks.find(x => x.id === id);
         this.tasks = this.tasks.filter(x => x.id !== id);
         this.persist('tasks');
+        if (task) syncRemoteMutation('tasks', 'delete', task);
     }
 
     addEvent(event) {
-        this.events.push({ id: Date.now(), ...event });
+        const record = { id: Date.now(), ...event };
+        this.events.push(record);
         this.persist('events');
+        syncRemoteMutation('events', 'insert', record);
     }
 
     updateEvent(id, changes) {
@@ -98,17 +107,22 @@ class AppState {
         if (ev) {
             Object.assign(ev, changes);
             this.persist('events');
+            syncRemoteMutation('events', 'update', ev, changes);
         }
     }
 
     deleteEvent(id) {
+        const ev = this.events.find(x => x.id === id);
         this.events = this.events.filter(x => x.id !== id);
         this.persist('events');
+        if (ev) syncRemoteMutation('events', 'delete', ev);
     }
 
     addShoppingItem(item) {
-        this.shopping.push({ id: Date.now(), ...item });
+        const record = { id: Date.now(), ...item };
+        this.shopping.push(record);
         this.persist('shopping');
+        syncRemoteMutation('shopping', 'insert', record);
     }
 
     updateShoppingItem(id, changes) {
@@ -116,6 +130,7 @@ class AppState {
         if (item) {
             Object.assign(item, changes);
             this.persist('shopping');
+            syncRemoteMutation('shopping', 'update', item, changes);
         }
     }
 
@@ -131,6 +146,7 @@ class AppState {
                 }
             }
             this.persist('shopping');
+            syncRemoteMutation('shopping', 'update', item, { purchased: item.purchased });
         }
     }
 
@@ -156,12 +172,14 @@ class AppState {
         }
         this.shopping = this.shopping.filter(x => x.id !== id);
         this.persist('shopping');
+        if (item) syncRemoteMutation('shopping', 'delete', item);
     }
 
     addTransaction(tx) {
         const transaction = { id: Date.now(), date: new Date().toISOString().slice(0, 10), ...tx };
         this.transactions.push(transaction);
         this.persist('transactions');
+        syncRemoteMutation('transactions', 'insert', transaction);
         return transaction;
     }
 
@@ -170,17 +188,22 @@ class AppState {
         if (tx) {
             Object.assign(tx, changes);
             this.persist('transactions');
+                syncRemoteMutation('transactions', 'update', tx, changes);
         }
     }
 
     deleteTransaction(id) {
+        const tx = this.transactions.find(x => x.id === id);
         this.transactions = this.transactions.filter(x => x.id !== id);
         this.persist('transactions');
+        if (tx) syncRemoteMutation('transactions', 'delete', tx);
     }
 
     addGoal(goal) {
-        this.goals.push({ id: Date.now(), ...goal });
+        const record = { id: Date.now(), ...goal };
+        this.goals.push(record);
         this.persist('goals');
+        syncRemoteMutation('goals', 'insert', record);
     }
 
     updateGoal(id, changes) {
@@ -188,18 +211,23 @@ class AppState {
         if (goal) {
             Object.assign(goal, changes);
             this.persist('goals');
+            syncRemoteMutation('goals', 'update', goal, changes);
         }
     }
 
     deleteGoal(id) {
+        const goal = this.goals.find(x => x.id === id);
         this.goals = this.goals.filter(x => x.id !== id);
         this.persist('goals');
+        if (goal) syncRemoteMutation('goals', 'delete', goal);
     }
 
     addNote(note) {
         const now = new Date().toISOString();
-        this.notes.push({ id: Date.now(), createdAt: now, updatedAt: now, ...note });
+        const record = { id: Date.now(), createdAt: now, updatedAt: now, ...note };
+        this.notes.push(record);
         this.persist('notes');
+        syncRemoteMutation('notes', 'insert', record);
     }
 
     updateNote(id, changes) {
@@ -207,12 +235,15 @@ class AppState {
         if (note) {
             Object.assign(note, changes, { updatedAt: new Date().toISOString() });
             this.persist('notes');
+            syncRemoteMutation('notes', 'update', note, changes);
         }
     }
 
     deleteNote(id) {
+        const note = this.notes.find(x => x.id === id);
         this.notes = this.notes.filter(x => x.id !== id);
         this.persist('notes');
+        if (note) syncRemoteMutation('notes', 'delete', note);
     }
 
     addHomeTask(task) {
@@ -224,6 +255,7 @@ class AppState {
         }
         this.home.push(homeTask);
         this.persist('home');
+        syncRemoteMutation('home', 'insert', homeTask);
     }
 
     updateHomeTask(id, changes) {
@@ -232,6 +264,7 @@ class AppState {
             Object.assign(task, changes);
             this.syncHomeTaskTransaction(task);
             this.persist('home');
+                syncRemoteMutation('home', 'update', task, changes);
         }
     }
 
@@ -259,6 +292,7 @@ class AppState {
         }
         this.home = this.home.filter(x => x.id !== id);
         this.persist('home');
+        if (task) syncRemoteMutation('home', 'delete', task);
     }
 
     addFamilyMember(member) {

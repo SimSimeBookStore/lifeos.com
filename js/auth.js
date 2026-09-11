@@ -17,20 +17,37 @@ export function getAccount() {
 function saveAccount(account) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(account));
 }
+import { ensureSupabaseProfile, getSupabaseAccount, signInWithPassword, signOutSupabase, signUpWithPassword } from './supabase.js';
 
 export function initAuth(onReady) {
     const ready = account => {
         document.body.classList.remove('auth-gate');
         onReady(account);
     };
-    const account = getAccount();
-    if (account) {
-        updateProfileHeader(account);
-        ready(account);
+    const localAccount = getAccount();
+    getSupabaseAccount().then(remoteAccount => {
+        if (remoteAccount) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...localAccount, ...remoteAccount }));
+            updateProfileHeader(remoteAccount);
+            ready(remoteAccount);
+            return;
+        }
+        if (localAccount) {
+        updateProfileHeader(localAccount);
+        ready(localAccount);
         return;
     }
     document.body.classList.add('auth-gate');
     renderWelcomePage(ready);
+    }).catch(() => {
+        if (localAccount) {
+            updateProfileHeader(localAccount);
+            ready(localAccount);
+        } else {
+            document.body.classList.add('auth-gate');
+            renderWelcomePage(ready);
+        }
+    });
 }
 
 function renderWelcomePage(onReady) {
@@ -149,19 +166,18 @@ function openAuthDialog(forced, onReady, initialMode = 'register') {
         overlay.onclick = event => { if (event.target === overlay) close(); };
     }
 
-    form.onsubmit = event => {
+    form.onsubmit = async event => {
         event.preventDefault();
         const email = overlay.querySelector('#auth-email').value.trim().toLowerCase();
         const password = overlay.querySelector('#auth-password').value;
         const existing = getAccount();
+        try {
         if (mode === 'signin') {
-            if (!existing || existing.email !== email || existing.password !== password) {
-                error.textContent = 'Email or password is not correct.';
-                return;
-            }
+            const account = await signInWithPassword(email, password);
             overlay.remove();
-            updateProfileHeader(existing);
-            onReady(existing);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...existing, ...account }));
+            updateProfileHeader(account);
+            onReady(account);
             return;
         }
 
@@ -169,7 +185,7 @@ function openAuthDialog(forced, onReady, initialMode = 'register') {
             error.textContent = 'An account with this email already exists. Sign in instead.';
             return;
         }
-        const account = {
+        const details = {
             name: nameField.value.trim(),
             email,
             password,
@@ -177,10 +193,14 @@ function openAuthDialog(forced, onReady, initialMode = 'register') {
             country: overlay.querySelector('#auth-country').value,
             phone: overlay.querySelector('#auth-phone').value.trim(),
         };
-        saveAccount(account);
+        const createdAccount = await signUpWithPassword(email, password, details);
+        saveAccount({ ...details, ...createdAccount });
         overlay.remove();
-        updateProfileHeader(account);
-        onReady(account);
+        updateProfileHeader(createdAccount);
+        onReady(createdAccount);
+        } catch (authError) {
+            error.textContent = authError.message || 'Authentication failed. Please try again.';
+        }
     };
 }
 
@@ -205,7 +225,7 @@ export function openProfileDialog() {
     const close = () => overlay.remove();
     overlay.querySelector('.close-modal-btn').onclick = close;
     overlay.querySelector('#close-profile-btn').onclick = close;
-    overlay.querySelector('#sign-out-btn').onclick = () => { localStorage.removeItem(STORAGE_KEY); window.location.reload(); };
+    overlay.querySelector('#sign-out-btn').onclick = async () => { await signOutSupabase(); localStorage.removeItem(STORAGE_KEY); window.location.reload(); };
 }
 
 export function getContactPhone(fallback = '') {
