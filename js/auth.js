@@ -15,9 +15,10 @@ export function getAccount() {
 }
 
 function saveAccount(account) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(account));
+    const { password, ...safeAccount } = account;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(safeAccount));
 }
-import { ensureSupabaseProfile, getSupabaseAccount, signInWithPassword, signOutSupabase, signUpWithPassword } from './supabase.js';
+import { getSupabaseAccount, signInWithPassword, signOutSupabase, signUpWithPassword } from './supabase.js';
 
 export function initAuth(onReady) {
     const ready = account => {

@@ -53,6 +53,45 @@ export async function signOutSupabase() {
     await supabase.auth.signOut();
 }
 
+export async function migrateLocalStateToSupabase(account, localState) {
+    if (!account?.id || !account.familyId) return;
+    const migrationKey = `lifeos_supabase_migrated_${account.id}`;
+    if (localStorage.getItem(migrationKey)) return;
+
+    const checks = await Promise.all([
+        supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('family_id', account.familyId),
+        supabase.from('events').select('id', { count: 'exact', head: true }).eq('family_id', account.familyId),
+        supabase.from('shopping_items').select('id', { count: 'exact', head: true }).eq('family_id', account.familyId),
+        supabase.from('notes').select('id', { count: 'exact', head: true }).eq('family_id', account.familyId),
+        supabase.from('goals').select('id', { count: 'exact', head: true }).eq('family_id', account.familyId),
+    ]);
+    if (checks.some(result => result.error) || checks.some(result => (result.count || 0) > 0)) {
+        localStorage.setItem(migrationKey, 'skipped-existing-remote-data');
+        return;
+    }
+
+    const operations = [
+        bulkInsert('tasks', (localState.tasks || []).map(task => toRemotePayload('tasks', task, {}, account.id, account.familyId))),
+        bulkInsert('events', (localState.events || []).map(event => toRemotePayload('events', event, {}, account.id, account.familyId))),
+        bulkInsert('shopping_items', (localState.shopping || []).map(item => toRemotePayload('shopping', item, {}, account.id, account.familyId))),
+        bulkInsert('notes', (localState.notes || []).map(note => toRemotePayload('notes', note, {}, account.id, account.familyId))),
+        bulkInsert('goals', (localState.goals || []).map(goal => toRemotePayload('goals', goal, {}, account.id, account.familyId))),
+        bulkInsert('expenses', (localState.transactions || []).filter(tx => tx.type === 'expense').map(tx => toRemotePayload('transactions', tx, {}, account.id, account.familyId))),
+        bulkInsert('income_records', (localState.transactions || []).filter(tx => tx.type === 'income').map(tx => toRemotePayload('transactions', tx, {}, account.id, account.familyId))),
+        bulkInsert('maintenance_records', (localState.home || []).map(task => toRemotePayload('home', task, {}, account.id, account.familyId))),
+    ];
+    const results = await Promise.all(operations);
+    const failed = results.find(result => result.error);
+    if (failed) throw failed.error;
+    localStorage.setItem(migrationKey, 'complete');
+}
+
+async function bulkInsert(table, rows) {
+    if (!rows.length) return { error: null };
+    const { error } = await supabase.from(table).insert(rows);
+    return { error };
+}
+
 function numericId(uuid, index) {
     const value = Number.parseInt(String(uuid).replace(/-/g, '').slice(-8), 16);
     return Number.isFinite(value) ? value : Date.now() + index;

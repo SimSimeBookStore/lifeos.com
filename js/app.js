@@ -5,7 +5,7 @@ import { initCurrencySelector } from './currency.js';
 import { applyAccent, getAccent, initAccentSelector } from './theme.js';
 import { initAuth, openProfileDialog } from './auth.js';
 import { initLanguageSelector, t } from './i18n.js';
-import { loadRemoteState } from './supabase.js';
+import { loadRemoteState, migrateLocalStateToSupabase } from './supabase.js';
 
 window.addEventListener('DOMContentLoaded', () => {
     // Theme Management
@@ -36,6 +36,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Account, currency, and app startup
     initAuth(async account => {
+        await migrateLocalStateToSupabase(account, state).catch(error => console.warn('Supabase local data migration failed', error.message));
         const remoteState = await loadRemoteState(account.familyId).catch(() => null);
         if (remoteState) Object.assign(state, remoteState);
         initCurrencySelector();
