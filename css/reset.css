@@ -1,0 +1,23 @@
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-sans);
+    background-color: var(--color-background);
+    color: var(--color-text);
+    line-height: 1.5;
+    overflow-x: hidden;
+    height: 100vh;
+}
+
+[data-theme="light"] body {
+    background: var(--color-background);
+}
+
+ul, ol { list-style: none; }
+a { text-decoration: none; color: inherit; }
+button, input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; background: none; border: none; outline: none; }
+button { cursor: pointer; }
