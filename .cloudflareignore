@@ -1,0 +1,10 @@
+node_modules/
+.wrangler/
+.git/
+.github/
+.supabase/
+supabase/
+*.log
+npm-debug.log*
+package-lock.json
+*.ps1
